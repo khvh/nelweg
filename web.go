@@ -1,17 +1,16 @@
-package web
+package nelweg
 
 import (
   "context"
   "embed"
   "encoding/json"
   "fmt"
+  "github.com/hashicorp/consul/api"
+  "github.com/hibiken/asynq"
   "github.com/khvh/nelweg/logger"
   "github.com/khvh/nelweg/queue"
   "github.com/khvh/nelweg/telemetry"
-  "github.com/hashicorp/consul/api"
-  "github.com/hibiken/asynq"
   "github.com/labstack/echo/v4"
-  "io"
   "io/fs"
   "net"
   "net/http"

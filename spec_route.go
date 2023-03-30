@@ -1,4 +1,4 @@
-package web
+package nelweg
 
 import (
   "github.com/labstack/echo/v4"
