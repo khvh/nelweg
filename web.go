@@ -11,6 +11,7 @@ import (
   "github.com/khvh/nelweg/queue"
   "github.com/khvh/nelweg/telemetry"
   "github.com/labstack/echo/v4"
+  "github.com/pkg/errors"
   "io/fs"
   "net"
   "net/http"
@@ -47,6 +48,9 @@ func (v *Validator) Validate(i any) error {
   return nil
 }
 
+// ValidateKey is def for validating API Keys
+type ValidateKey func(key string) (map[string]any, error)
+
 // ServerOptions ...
 type ServerOptions struct {
   ID            string `json:"id,omitempty" yaml:"id,omitempty"`
@@ -82,6 +86,7 @@ type Server struct {
   jwks         jwk.Set
   qRef         *queue.Queue
   consulClient *api.Client
+  keyValidator ValidateKey
 }
 
 // Configuration ...
@@ -112,7 +117,7 @@ func New(cfgs ...Configuration) *Server {
     Title:       s.opts.ID + "-api",
     Description: s.opts.Description,
     Version:     s.opts.Version,
-    APIKeyAuth:  false,
+    APIKeyAuth:  s.keyValidator != nil,
   }
 
   if s.oidc != nil {
@@ -247,8 +252,6 @@ func WithFrontend(data embed.FS, dir string) Configuration {
       }
 
       u, err := url.Parse(fmt.Sprintf("http://localhost:%d", fePort))
-
-      //s.e.Use(middleware.Proxy(middleware.NewRoundRobinBalancer([]*middleware.ProxyTarget{{URL: u}})))
 
       rrb := middleware.NewRoundRobinBalancer([]*middleware.ProxyTarget{{URL: u}})
 
@@ -405,11 +408,86 @@ func WithServiceMesh(meshType string, address string) Configuration {
   }
 }
 
+// WithKeyValidator for validating API Keys
+func WithKeyValidator(v ValidateKey) Configuration {
+  return func(s *Server) error {
+    s.keyValidator = v
+
+    return nil
+  }
+}
+
 // Group ...
 func (s *Server) Group(path string, specs ...*Spec) *Server {
   s.groups[path] = specs
 
   return s
+}
+
+func (s *Server) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+  return func(c echo.Context) error {
+    claims, err := s.ValidateJWTToken(c.Request().Context(), strings.ReplaceAll(c.Request().Header.Get("authorization"), "Bearer ", ""))
+    if err != nil {
+      log.Debug().Err(err).Send()
+      return c.JSON(http.StatusUnauthorized, nil)
+    }
+
+    c.Set("claims", claims)
+
+    return next(c)
+  }
+}
+
+func (s *Server) apiAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+  return func(c echo.Context) error {
+    claims, err := s.keyValidator(c.Request().Header.Get("x-api-key"))
+    if err != nil {
+      log.Debug().Err(err).Send()
+      return c.JSON(http.StatusUnauthorized, nil)
+    }
+
+    c.Set("claims", claims)
+
+    return next(c)
+  }
+}
+
+var (
+  // ErrFullAuthUnauthorized for empty key & bearer
+  ErrFullAuthUnauthorized = errors.New("api key and bearer token empty")
+
+  // ErrFullAuthUnauthorizedInvalidTokens for invalid key and bearer
+  ErrFullAuthUnauthorizedInvalidTokens = errors.New("api key and bearer token empty")
+)
+
+func (s *Server) fullAuth(next echo.HandlerFunc) echo.HandlerFunc {
+  return func(c echo.Context) error {
+    apiKey := c.Request().Header.Get("x-api-key")
+    bearer := strings.ReplaceAll(c.Request().Header.Get("authorization"), "Bearer ", "")
+
+    if apiKey == "" && bearer == "" {
+      log.Debug().Err(ErrFullAuthUnauthorized).Send()
+      return c.JSON(http.StatusUnauthorized, nil)
+    }
+
+    keyClaims, keyErr := s.keyValidator(apiKey)
+    bearerClaims, bearerErr := s.ValidateJWTToken(c.Request().Context(), bearer)
+
+    if keyErr != nil && bearerErr != nil {
+      log.Debug().Err(ErrFullAuthUnauthorizedInvalidTokens).Send()
+      return c.JSON(http.StatusUnauthorized, nil)
+    }
+
+    if keyClaims != nil {
+      c.Set("claims", keyClaims)
+    }
+
+    if bearerClaims != nil {
+      c.Set("claims", bearerClaims)
+    }
+
+    return next(c)
+  }
 }
 
 func (s *Server) processSpecs() *Server {
@@ -421,20 +499,16 @@ func (s *Server) processSpecs() *Server {
         log.Err(err).Send()
       }
 
-      if spec.Auth {
-        spec.Route.middleware = append(spec.Route.middleware, func(next echo.HandlerFunc) echo.HandlerFunc {
-          return func(c echo.Context) error {
-            claims, err := s.ValidateJWTToken(c.Request().Context(), strings.ReplaceAll(c.Request().Header.Get("authorization"), "Bearer ", ""))
-            if err != nil {
-              log.Debug().Err(err).Send()
-              return c.JSON(http.StatusUnauthorized, nil)
-            }
+      if spec.Auth && !spec.AuthAPI {
+        spec.Route.middleware = append(spec.Route.middleware, s.authMiddleware)
+      }
 
-            c.Set("claims", claims)
+      if !spec.Auth && spec.AuthAPI {
+        spec.Route.middleware = append(spec.Route.middleware, s.apiAuthMiddleware)
+      }
 
-            return next(c)
-          }
-        })
+      if spec.Auth && spec.AuthAPI {
+        spec.Route.middleware = append(spec.Route.middleware, s.fullAuth)
       }
 
       switch spec.Method {
