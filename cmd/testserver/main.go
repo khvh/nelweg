@@ -35,6 +35,9 @@ func main() {
     ).
     Group("/test", nelweg.Get[example]("", func(c echo.Context) error {
       return c.JSON(http.StatusOK, example{Status: true})
-    }).WithAPIAuth()).
+    }).WithTags("Examples").WithAPIAuth().With(
+      nelweg.WithSummary("This path does things"),
+      nelweg.WithDescription("Short description"),
+    )).
     Run()
 }

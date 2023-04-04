@@ -9,9 +9,9 @@
     <script type="module" src="/docs/rapidoc.js"></script>
     <script>
       const setTheme = doc => {
-        doc.setAttribute('theme','light');
-        doc.setAttribute('bg-color','#ecf1f7');
-        doc.setAttribute('text-color','#133863');
+        // doc.setAttribute('theme','light');
+        // doc.setAttribute('bg-color','#ecf1f7');
+        // doc.setAttribute('text-color','#133863');
       }
 
       document.addEventListener('DOMContentLoaded', () => setTheme(document.querySelector('#doc')));
@@ -20,11 +20,56 @@
   <body>
     <rapi-doc
       id="doc"
-      layout="column"
+
       spec-url="/spec/spec.json"
-      schema-style="table"
-      show-header="false"
+
+      sort-tags="true"
+      sort-endpoints-by="path"
+      heading-text=""
+      goto-path=""
+      fill-request-fields-with-example="true"
+
+      theme="dark"
+
+      load-fonts="true"
+      regular-font='-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"'
+      mono-font="Monaco"
+      font-size="default"
+
+      use-path-in-nav-bar="false"
+      nav-bg-color=""
+      nav-bg-image=""
+      nav-bg-image-repeat="repeat"
+      nav-text-color=""
+      nav-hover-bg-color=""
+      nav-hover-text-color=""
+      nav-accent-color=""
+      nav-item-spacing="default"
+
+      layout="row"
+      render-style="view"
+      on-nav-tag-click="expand-collapse"
+      schema-style="tree"
+      schema-expand-level="999"
+      schema-description-expanded="false"
+      schema-hide-read-only="always"
+      schema-hide-write-only="always"
+      default-schema-tab="model"
+      response-area-height="300px"
+
       show-info="true"
+      info-description-headings-in-navbar="false"
+      show-components="true"
+      show-header="true"
+      allow-authentication="true"
+      allow-spec-url-load="false"
+      allow-spec-file-load="false"
+      allow-search="true"
+      allow-try="true"
+      allow-server-selection="true"
+      allow-schema-description-expand-toggle="true"
+
+
       allow-authentication="true"
       allow-server-selection="true"
       allow-api-list-style-selection="true"
