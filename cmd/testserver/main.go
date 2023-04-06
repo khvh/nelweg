@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"net/http"
 
@@ -14,6 +15,9 @@ type example struct {
 }
 
 var errBadKey = errors.New("unknown key")
+
+//go:embed ui
+var content embed.FS
 
 func main() {
 	nelweg.
@@ -34,8 +38,9 @@ func main() {
 					"WithKeyValidator": 1,
 				}, err
 			}),
+			nelweg.WithFrontend(content, "./cmd/testserver/ui", "node_modules"),
 		).
-		Group("/test", nelweg.Get[example]("/:id", func(c echo.Context) error {
+		Group("/api/test", nelweg.Get[example]("/:id", func(c echo.Context) error {
 			fmt.Println(c.Param("id"))
 			return c.JSON(http.StatusOK, example{Status: true})
 		}).WithTags("Examples").WithAPIAuth().With(

@@ -270,7 +270,7 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 						return strings.HasPrefix(p, i)
 					})
 
-					return !found
+					return found
 				},
 			}))
 		} else {
@@ -286,7 +286,7 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 						return strings.HasPrefix(p, i)
 					})
 
-					return !found
+					return found
 				},
 			}))
 		}
