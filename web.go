@@ -256,7 +256,7 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 				fePort = int(packageJSON["devPort"].(float64))
 			}
 
-			u, err := url.Parse(fmt.Sprintf("http://localhost:%d", fePort))
+			u, err := url.Parse(fmt.Sprintf("http://0.0.0.0:%d", fePort))
 
 			rrb := middleware.NewRoundRobinBalancer([]*middleware.ProxyTarget{{URL: u}})
 
