@@ -21,6 +21,7 @@ import (
 	"github.com/khvh/nelweg/telemetry"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
+	"github.com/samber/lo"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 
@@ -225,7 +226,10 @@ func (s *Server) buildYarn(dir string) {
 }
 
 // WithFrontend ...
-func WithFrontend(data embed.FS, dir string) Configuration {
+func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration {
+	pathExceptions := []string{"/monitoring", "/docs", "/spec", "/metrics", "/health", "/_internal", "/api"}
+	pathExceptions = append(pathExceptions, exceptions...)
+
 	return func(s *Server) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
@@ -262,17 +266,11 @@ func WithFrontend(data embed.FS, dir string) Configuration {
 				Skipper: func(c echo.Context) bool {
 					p := c.Request().URL.Path
 
-					if strings.HasPrefix(p, "/monitoring") ||
-						strings.HasPrefix(p, "/docs") ||
-						strings.HasPrefix(p, "/spec") ||
-						strings.HasPrefix(p, "/metrics") ||
-						strings.HasPrefix(p, "/health") ||
-						strings.HasPrefix(p, "/_internal") ||
-						strings.HasPrefix(p, "/api") {
-						return true
-					}
+					_, found := lo.Find(pathExceptions, func(i string) bool {
+						return strings.HasPrefix(p, i)
+					})
 
-					return false
+					return !found
 				},
 			}))
 		} else {
@@ -284,17 +282,11 @@ func WithFrontend(data embed.FS, dir string) Configuration {
 				Skipper: func(c echo.Context) bool {
 					p := c.Request().URL.Path
 
-					if strings.HasPrefix(p, "/monitoring") ||
-						strings.HasPrefix(p, "/docs") ||
-						strings.HasPrefix(p, "/spec") ||
-						strings.HasPrefix(p, "/metrics") ||
-						strings.HasPrefix(p, "/health") ||
-						strings.HasPrefix(p, "/_internal") ||
-						strings.HasPrefix(p, "/api") {
-						return true
-					}
+					_, found := lo.Find(pathExceptions, func(i string) bool {
+						return strings.HasPrefix(p, i)
+					})
 
-					return false
+					return !found
 				},
 			}))
 		}
@@ -669,6 +661,7 @@ func getFileSystem(embededFiles embed.FS, dir string, isDev bool) http.FileSyste
 	return http.FS(sub)
 }
 
+// CreateEchoInstance ...
 func CreateEchoInstance(hideBanner bool) *echo.Echo {
 	e := echo.New()
 
