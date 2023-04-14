@@ -1,5 +1,13 @@
-import { render } from 'preact'
-import { App } from './app'
-import './index.css'
+import { MantineProvider } from '@mantine/core';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-render(<App />, document.getElementById('app') as HTMLElement)
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  <React.StrictMode>
+    <MantineProvider withGlobalStyles withNormalizeCSS>
+      <App />
+    </MantineProvider>
+  </React.StrictMode>
+);

@@ -40,11 +40,11 @@ func (l lokiWriter) Write(p []byte) (int, error) {
 
 // Init logger for dev or prod
 func Init(level int, devMode bool, id string) {
-	env := "dev"
+	// env := "dev"
 
-	if !devMode {
-		env = "prod"
-	}
+	// if !devMode {
+	// 	env = "prod"
+	// }
 
 	if devMode {
 		zerolog.SetGlobalLevel(zerolog.Level(level))
@@ -52,6 +52,6 @@ func Init(level int, devMode bool, id string) {
 		log.Logger = zerolog.New(io.MultiWriter(zerolog.ConsoleWriter{Out: os.Stderr}))
 	} else {
 		zerolog.SetGlobalLevel(zerolog.Level(level))
-		log.Logger = zerolog.New(newLokiWriter(id, env))
+		// log.Logger = zerolog.New(newLokiWriter(id, env))
 	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"fmt"
 	"net/http"
 
 	"github.com/khvh/nelweg"
@@ -16,7 +15,7 @@ type example struct {
 
 var errBadKey = errors.New("unknown key")
 
-//go:embed ui
+//go:embed ui/dist
 var content embed.FS
 
 func main() {
@@ -25,6 +24,7 @@ func main() {
 			nelweg.WithConfig(nelweg.ServerOptions{
 				Port: 1337,
 				ID:   "nelweg-test",
+				Env:  "production",
 			}),
 			nelweg.WithLogging(),
 			nelweg.WithKeyValidator(func(key string) (map[string]any, error) {
@@ -38,10 +38,9 @@ func main() {
 					"WithKeyValidator": 1,
 				}, err
 			}),
-			nelweg.WithFrontend(content, "./cmd/testserver/ui", "node_modules"),
+			nelweg.WithFrontend(content, "ui/dist", "node_modules"),
 		).
 		Group("/api/test", nelweg.Get[example]("/:id", func(c echo.Context) error {
-			fmt.Println(c.Param("id"))
 			return c.JSON(http.StatusOK, example{Status: true})
 		}).WithTags("Examples").WithAPIAuth().With(
 			nelweg.WithSummary("This path does things"),

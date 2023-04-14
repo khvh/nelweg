@@ -1,33 +1,55 @@
-import { useState } from 'preact/hooks'
-import preactLogo from './assets/preact.svg'
-import viteLogo from '/vite.svg'
-import './app.css'
+import { Accordion, Container } from '@mantine/core';
+import ky from 'ky';
+import { useEffect, useState } from 'react';
+import './App.css';
+import { HeaderTabs } from './component/HeaderTabs';
 
-export function App() {
-  const [count, setCount] = useState(0)
+interface Perscription {
+  id: string;
+  name: string;
+  decription: string;
+  createdAt: string;
+}
+
+interface Patient {
+  first: string;
+  last: string;
+  idCode: number;
+}
+
+interface PatientPerscription {
+  id: string;
+  active: boolean;
+  patient: Patient;
+  perscription: Perscription;
+  issuedAt: Date;
+  expiresAt: Date;
+}
+
+function App() {
+  const [perscriptions, setPerscriptions] = useState<Perscription[]>([]);
+
+  useEffect(() => {
+    ky.get('/api/perscriptions/')
+      .then((res) => res.json<Perscription[]>())
+      .then((data) => setPerscriptions(data));
+  }, []);
 
   return (
     <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} class="logo" alt="Vite logo" />
-        </a>
-        <a href="https://preactjs.com" target="_blank">
-          <img src={preactLogo} class="logo preact" alt="Preact logo" />
-        </a>
-      </div>
-      <h1>Vite + Preact</h1>
-      <div class="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/app.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p class="read-the-docs">
-        Click on the Vite and Preact logos to learn more
-      </p>
+      <HeaderTabs tabs={['Dashboard', 'Perscriptions']} user={{ name: 'User Name', image: '' }} />
+      <Container>
+        <Accordion variant="contained">
+          <Accordion.Item value="Name">
+            <Accordion.Control>Name</Accordion.Control>
+            <Accordion.Panel>
+              <div>dexc</div>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
+      </Container>
     </>
-  )
+  );
 }
+
+export default App;
