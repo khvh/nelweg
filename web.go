@@ -25,11 +25,12 @@ import (
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 
+	echoPrometheus "github.com/globocom/echo-prometheus"
 	"github.com/go-playground/validator/v10"
 	"github.com/imdario/mergo"
-	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
 	"github.com/swaggest/openapi-go/openapi3"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
@@ -302,7 +303,8 @@ func WithMetrics() Configuration {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
 
-		prometheus.NewPrometheus(strings.ReplaceAll(s.opts.ID, "-", "_"), nil).Use(s.e)
+		s.e.Use(echoPrometheus.MetricsMiddleware())
+		s.e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 		return nil
 	}
@@ -321,7 +323,9 @@ func WithQueue(url, pw string, opts queue.Queues, fn func(q *queue.Queue)) Confi
 
 		s.e.Any("/monitoring/tasks/*", echo.WrapHandler(mon))
 
-		fn(q)
+		if fn != nil {
+			fn(q)
+		}
 
 		s.qRef = q.Run()
 
@@ -568,6 +572,10 @@ func (s *Server) Run() {
 
 	fsContent := getFileSystem(content, "docs", s.opts.Env == "dev")
 	assetHandler := http.FileServer(fsContent)
+
+	s.e.Any("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]any{"status": true})
+	})
 
 	s.e.Any("/docs", echo.WrapHandler(http.StripPrefix("/docs", assetHandler)))
 	s.e.Any("/docs/*", echo.WrapHandler(http.StripPrefix("/docs", assetHandler)))
