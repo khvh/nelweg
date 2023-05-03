@@ -79,8 +79,8 @@ type OIDCOptions struct {
 	ClientRedirectURI string `json:"clientRedirectURI,omitempty" yaml:"clientRedirectURI,omitempty"`
 }
 
-// Server ...
-type Server struct {
+// EchoServer ...
+type EchoServer struct {
 	e            *echo.Echo
 	groups       map[string][]*Spec
 	ref          *openapi3.Reflector
@@ -93,11 +93,11 @@ type Server struct {
 }
 
 // Configuration ...
-type Configuration func(s *Server) error
+type Configuration func(s *EchoServer) error
 
 // New constructs Server
-func New(cfgs ...Configuration) *Server {
-	s := &Server{
+func New(cfgs ...Configuration) *EchoServer {
+	s := &EchoServer{
 		groups: make(map[string][]*Spec),
 		opts:   createDefaults(),
 	}
@@ -134,7 +134,7 @@ func New(cfgs ...Configuration) *Server {
 
 // WithConfig ...
 func WithConfig(opts ServerOptions) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		s.opts = createDefaults(*s.opts, opts)
 
 		return nil
@@ -143,7 +143,7 @@ func WithConfig(opts ServerOptions) Configuration {
 
 // WithDefaultMiddleware ...
 func WithDefaultMiddleware() Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -158,7 +158,7 @@ func WithDefaultMiddleware() Configuration {
 
 // WithRequestLogger ...
 func WithRequestLogger() Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -184,7 +184,7 @@ func WithRequestLogger() Configuration {
 
 // WithTracing ...
 func WithTracing(url ...string) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -206,7 +206,7 @@ func WithTracing(url ...string) Configuration {
 	}
 }
 
-func (s *Server) startYarnDev(dir string) {
+func (s *EchoServer) startYarnDev(dir string) {
 	cmd := exec.Command("yarn", "dev")
 
 	cmd.Dir = dir
@@ -216,7 +216,7 @@ func (s *Server) startYarnDev(dir string) {
 	log.Trace().Err(err).Bytes("out", out).Send()
 }
 
-func (s *Server) buildYarn(dir string) {
+func (s *EchoServer) buildYarn(dir string) {
 	cmd := exec.Command("yarn", "build")
 
 	cmd.Dir = dir
@@ -231,7 +231,7 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 	pathExceptions := []string{"/monitoring", "/docs", "/spec", "/metrics", "/health", "/_internal", "/api"}
 	pathExceptions = append(pathExceptions, exceptions...)
 
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -298,7 +298,7 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 
 // WithMetrics ...
 func WithMetrics() Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -312,7 +312,7 @@ func WithMetrics() Configuration {
 
 // WithQueue ...
 func WithQueue(url, pw string, opts queue.Queues, fn func(q *queue.Queue)) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -337,7 +337,7 @@ func WithQueue(url, pw string, opts queue.Queues, fn func(q *queue.Queue)) Confi
 
 // WithLogging ...
 func WithLogging() Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		logger.Init(s.opts.LogLevel, s.opts.Env == "dev", s.opts.ID)
 
 		return nil
@@ -346,7 +346,7 @@ func WithLogging() Configuration {
 
 // WithOIDC enables OpenID Connect auth
 func WithOIDC(opts OIDCOptions) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -370,7 +370,7 @@ func WithOIDC(opts OIDCOptions) Configuration {
 
 // WithMiddleware add middleware to Echo
 func WithMiddleware(middleware ...echo.MiddlewareFunc) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if s.e == nil {
 			s.e = CreateEchoInstance(s.opts.HideBanner)
 		}
@@ -383,7 +383,7 @@ func WithMiddleware(middleware ...echo.MiddlewareFunc) Configuration {
 
 // WithServiceMesh register the API with a service mesh (Consul for now)
 func WithServiceMesh(meshType string, address string) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		if meshType == "consul" {
 			client, err := api.NewClient(api.DefaultConfig())
 			if err != nil {
@@ -407,7 +407,7 @@ func WithServiceMesh(meshType string, address string) Configuration {
 
 // WithKeyValidator for validating API Keys
 func WithKeyValidator(v ValidateKey) Configuration {
-	return func(s *Server) error {
+	return func(s *EchoServer) error {
 		s.keyValidator = v
 
 		return nil
@@ -415,13 +415,13 @@ func WithKeyValidator(v ValidateKey) Configuration {
 }
 
 // Group ...
-func (s *Server) Group(path string, specs ...*Spec) *Server {
+func (s *EchoServer) Group(path string, specs ...*Spec) *EchoServer {
 	s.groups[path] = specs
 
 	return s
 }
 
-func (s *Server) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *EchoServer) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		claims, err := s.ValidateJWTToken(c.Request().Context(), strings.ReplaceAll(c.Request().Header.Get("authorization"), "Bearer ", ""))
 		if err != nil {
@@ -435,7 +435,7 @@ func (s *Server) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func (s *Server) apiAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *EchoServer) apiAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		claims, err := s.keyValidator(c.Request().Header.Get("x-api-key"))
 		if err != nil {
@@ -457,7 +457,7 @@ var (
 	ErrFullAuthUnauthorizedInvalidTokens = errors.New("api key and bearer token empty")
 )
 
-func (s *Server) fullAuth(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *EchoServer) fullAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		apiKey := c.Request().Header.Get("x-api-key")
 		bearer := strings.ReplaceAll(c.Request().Header.Get("authorization"), "Bearer ", "")
@@ -487,7 +487,7 @@ func (s *Server) fullAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func (s *Server) processSpecs() *Server {
+func (s *EchoServer) processSpecs() *EchoServer {
 	for k, v := range s.groups {
 		for _, spec := range v {
 			spec.PathPrefix = k
@@ -526,7 +526,7 @@ func (s *Server) processSpecs() *Server {
 	return s
 }
 
-func (s *Server) build() *Server {
+func (s *EchoServer) build() *EchoServer {
 	yamlBytes, err := s.ref.Spec.MarshalYAML()
 	if err != nil {
 		log.Err(err).Send()
@@ -567,7 +567,7 @@ func (s *Server) build() *Server {
 var content embed.FS
 
 // Run starts the server
-func (s *Server) Run() {
+func (s *EchoServer) Run() {
 	s.processSpecs().build()
 
 	fsContent := getFileSystem(content, "docs", s.opts.Env == "dev")
@@ -601,7 +601,7 @@ func (s *Server) Run() {
 }
 
 // Stop ...
-func (s *Server) Stop(ctx context.Context) error {
+func (s *EchoServer) Stop(ctx context.Context) error {
 	if s.consulClient != nil {
 		if err := s.consulClient.Agent().ServiceDeregister(s.opts.ID); err != nil {
 			log.Trace().Err(err).Send()
