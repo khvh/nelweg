@@ -423,8 +423,27 @@ func (s *EchoServer) Group(path string, specs ...*Spec) *EchoServer {
 	return s
 }
 
+// Route adds a route to predefined group (erver id group)
 func (s *EchoServer) Route(path string, spec *Spec) *EchoServer {
 	s.groups[s.opts.ID] = append([]*Spec{}, spec)
+
+	return s
+}
+
+// RawRoute adds a path + method + middleware directly echo bypassing OpenAPI and without doing any checks
+func (s *EchoServer) RawRoute(method Method, path string, fn echo.HandlerFunc, mw ...echo.MiddlewareFunc) *EchoServer {
+	switch method {
+	case MethodGet:
+		s.e.GET(path, fn, mw...)
+	case MethodDelete:
+		s.e.DELETE(path, fn, mw...)
+	case MethodPost:
+		s.e.POST(path, fn, mw...)
+	case MethodPut:
+		s.e.PUT(path, fn, mw...)
+	case MethodPatch:
+		s.e.PATCH(path, fn, mw...)
+	}
 
 	return s
 }
