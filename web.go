@@ -110,6 +110,8 @@ func New(cfgs ...Configuration) *EchoServer {
 		}
 	}
 
+	s.groups[s.opts.ID] = []*Spec{}
+
 	if s.e == nil {
 		s.e = CreateEchoInstance(s.opts.HideBanner)
 	}
@@ -417,6 +419,12 @@ func WithKeyValidator(v ValidateKey) Configuration {
 // Group ...
 func (s *EchoServer) Group(path string, specs ...*Spec) *EchoServer {
 	s.groups[path] = specs
+
+	return s
+}
+
+func (s *EchoServer) Route(path string, spec *Spec) *EchoServer {
+	s.groups[s.opts.ID] = append([]*Spec{}, spec)
 
 	return s
 }
