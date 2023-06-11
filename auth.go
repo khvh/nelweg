@@ -136,6 +136,7 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 
 		claims, err := s.ValidateJWTToken(c.Request().Context(), ck.Value)
 		if err != nil {
+			log.Debug().Err(fmt.Errorf("auth userinfo, %w", err))
 			return c.JSON(http.StatusUnauthorized, nil)
 		}
 
