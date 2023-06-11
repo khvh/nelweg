@@ -104,21 +104,25 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 		c.SetCookie(&http.Cookie{
 			Name:  "accessToken",
 			Value: data.AccessToken,
+			Path:  "/",
 		})
 
 		c.SetCookie(&http.Cookie{
 			Name:  "accessExpires",
 			Value: strconv.Itoa(data.ExpiresIn),
+			Path:  "/",
 		})
 
 		c.SetCookie(&http.Cookie{
 			Name:  "refreshToken",
 			Value: data.RefreshToken,
+			Path:  "/",
 		})
 
 		c.SetCookie(&http.Cookie{
 			Name:  "refreshExpires",
 			Value: strconv.Itoa(data.RefreshExpiresIn),
+			Path:  "/",
 		})
 
 		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s", s.oidc.ClientRedirectURI))
@@ -185,21 +189,25 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 		c.SetCookie(&http.Cookie{
 			Name:  "accessToken",
 			Value: data.AccessToken,
+			Path:  "/",
 		})
 
 		c.SetCookie(&http.Cookie{
 			Name:  "accessExpires",
 			Value: strconv.Itoa(data.ExpiresIn),
+			Path:  "/",
 		})
 
 		c.SetCookie(&http.Cookie{
 			Name:  "refreshToken",
 			Value: data.RefreshToken,
+			Path:  "/",
 		})
 
 		c.SetCookie(&http.Cookie{
 			Name:  "refreshExpires",
 			Value: strconv.Itoa(data.RefreshExpiresIn),
+			Path:  "/",
 		})
 
 		return c.JSON(http.StatusOK, data)
