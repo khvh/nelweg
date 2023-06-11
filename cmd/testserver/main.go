@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/khvh/nelweg"
 	"github.com/labstack/echo/v4"
@@ -18,6 +20,8 @@ var errBadKey = errors.New("unknown key")
 // var content embed.FS
 
 func main() {
+	o, _ := os.Getwd()
+	fmt.Println(o)
 	nelweg.
 		New(
 			nelweg.WithConfig(nelweg.ServerOptions{
@@ -37,13 +41,18 @@ func main() {
 					"WithKeyValidator": 1,
 				}, err
 			}),
-			// nelweg.WithQueue("localhost:6379", "", queue.Queues{
-			// 	"critical": 6,
-			// 	"default":  3,
-			// 	"low":      1,
-			// }, nil),
 			nelweg.WithMetrics(),
-			// nelweg.WithFrontend(embed.FS{}, "ui/dist", "node_modules"),
+			nelweg.WithOIDC(nelweg.OIDCOptions{
+				Issuer:            "http://localhost:8888/realms/haldri/protocol/openid-connect",
+				AuthURI:           "auth",
+				KeysURI:           "certs",
+				TokenURI:          "token",
+				ClientID:          "haldri-dev",
+				Secret:            "8AaObfNT2lqBNk7bFtF7xWc8R5nfgjFn",
+				RedirectURI:       "http://127.0.0.1:1337/api/auth/code",
+				ClientRedirectURI: "http://127.0.0.1:1337/api/auth/userinfo",
+			}),
+			// nelweg.WithFrontend(embed.FS{}, "cmd/testserver/ui", "node_modules"),
 		).
 		Group("/api/test", nelweg.Get[example]("/:id", func(c echo.Context) error {
 			return c.JSON(http.StatusOK, example{Status: true})

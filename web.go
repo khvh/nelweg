@@ -225,7 +225,7 @@ func (s *EchoServer) buildYarn(dir string) {
 
 	out, err := cmd.Output()
 
-	log.Trace().Err(err).Bytes("out", out).Send()
+	log.Trace().Err(fmt.Errorf("startYarnDev: %w", err)).Bytes("out", out).Send()
 }
 
 // WithFrontend ...
@@ -247,7 +247,10 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 
 			file, err := os.ReadFile(dir + "/package.json")
 			if err != nil {
-				log.Trace().Err(err).Send()
+				log.Trace().
+					Err(fmt.Errorf("WithFrontend -> read package.json: %w", err)).
+					Str("path", dir+"/package.json").
+					Send()
 			}
 
 			var packageJSON map[string]interface{}

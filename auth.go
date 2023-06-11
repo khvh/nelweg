@@ -7,10 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/go-querystring/query"
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -95,25 +95,114 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 
 		var data CodeResponse
 
-		json.Unmarshal(bts, &data)
-
-		v, err := query.Values(data)
-		if err != nil {
-			log.Debug().Err(fmt.Errorf("encode %w", err)).Send()
+		if err := json.Unmarshal(bts, &data); err != nil {
+			log.Debug().Err(fmt.Errorf("unmarshal code response, %w", err))
 
 			return c.JSON(http.StatusBadRequest, nil)
 		}
 
-		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s?%s", s.oidc.ClientRedirectURI, v.Encode()))
+		c.SetCookie(&http.Cookie{
+			Name:  "accessToken",
+			Value: data.AccessToken,
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name:  "accessExpires",
+			Value: strconv.Itoa(data.ExpiresIn),
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name:  "refreshToken",
+			Value: data.RefreshToken,
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name:  "refreshExpires",
+			Value: strconv.Itoa(data.RefreshExpiresIn),
+		})
+
+		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s", s.oidc.ClientRedirectURI))
 	})
 
 	s.e.Any("/api/auth/userinfo", func(c echo.Context) error {
-		claims, err := s.ValidateJWTToken(c.Request().Context(), c.QueryParam("accessToken"))
+		ck, err := c.Cookie("accessToken")
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, nil)
+		}
+
+		claims, err := s.ValidateJWTToken(c.Request().Context(), ck.Value)
 		if err != nil {
 			return c.JSON(http.StatusUnauthorized, nil)
 		}
 
 		return c.JSON(200, claims)
+	})
+
+	s.e.GET("/api/auth/refresh", func(c echo.Context) error {
+		ck, err := c.Cookie("refreshToken")
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, nil)
+		}
+
+		form := url.Values{}
+
+		form.Add("grant_type", "refresh_token")
+		form.Add("client_id", s.oidc.ClientID)
+		form.Add("client_secret", s.oidc.Secret)
+		form.Add("refresh_token", ck.Value)
+
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/%s", s.oidc.Issuer, s.oidc.TokenURI), strings.NewReader(form.Encode()))
+		if err != nil {
+			log.Debug().Err(fmt.Errorf("create http client %w", err)).Send()
+
+			return c.JSON(http.StatusBadRequest, nil)
+		}
+
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Debug().Err(fmt.Errorf("send refresh req %w", err)).Send()
+
+			return c.JSON(http.StatusBadRequest, nil)
+		}
+
+		bts, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Debug().Err(fmt.Errorf("read body %w", err)).Send()
+
+			return c.JSON(http.StatusBadRequest, nil)
+		}
+
+		var data CodeResponse
+
+		if err := json.Unmarshal(bts, &data); err != nil {
+			log.Debug().Err(fmt.Errorf("unmarshal code response, %w", err))
+
+			return c.JSON(http.StatusBadRequest, nil)
+		}
+
+		c.SetCookie(&http.Cookie{
+			Name:  "accessToken",
+			Value: data.AccessToken,
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name:  "accessExpires",
+			Value: strconv.Itoa(data.ExpiresIn),
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name:  "refreshToken",
+			Value: data.RefreshToken,
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name:  "refreshExpires",
+			Value: strconv.Itoa(data.RefreshExpiresIn),
+		})
+
+		return c.JSON(http.StatusOK, data)
 	})
 
 	return s
