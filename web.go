@@ -453,12 +453,9 @@ func (s *EchoServer) RawRoute(method Method, path string, fn echo.HandlerFunc, m
 
 func (s *EchoServer) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		ck, err := c.Cookie("accessToken")
-		if err != nil {
-			return c.JSON(http.StatusUnauthorized, nil)
-		}
+		token := strings.ReplaceAll(c.Request().Header.Get("Authorization"), "Bearer ", "")
 
-		claims, err := s.ValidateJWTToken(c.Request().Context(), ck.Value)
+		claims, err := s.ValidateJWTToken(c.Request().Context(), token)
 		if err != nil {
 			log.Debug().Err(err).Send()
 			return c.JSON(http.StatusUnauthorized, nil)
