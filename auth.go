@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +14,8 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/rs/zerolog/log"
+
+	"github.com/google/go-querystring/query"
 )
 
 // CodeResponse == oidc successful login dao
@@ -95,46 +96,24 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 
 		var data CodeResponse
 
+		json.Unmarshal(bts, &data)
+
+		v, err := query.Values(data)
+		if err != nil {
+			log.Debug().Err(fmt.Errorf("encode %w", err)).Send()
+		}
+
 		if err := json.Unmarshal(bts, &data); err != nil {
 			log.Debug().Err(fmt.Errorf("unmarshal code response, %w", err))
 
 			return c.JSON(http.StatusBadRequest, nil)
 		}
 
-		c.SetCookie(&http.Cookie{
-			Name:  "accessToken",
-			Value: data.AccessToken,
-			Path:  "/",
-		})
-
-		c.SetCookie(&http.Cookie{
-			Name:  "accessExpires",
-			Value: strconv.Itoa(data.ExpiresIn),
-			Path:  "/",
-		})
-
-		c.SetCookie(&http.Cookie{
-			Name:  "refreshToken",
-			Value: data.RefreshToken,
-			Path:  "/",
-		})
-
-		c.SetCookie(&http.Cookie{
-			Name:  "refreshExpires",
-			Value: strconv.Itoa(data.RefreshExpiresIn),
-			Path:  "/",
-		})
-
-		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s", s.oidc.ClientRedirectURI))
+		return c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s?%s", s.oidc.ClientRedirectURI, v.Encode()))
 	})
 
 	s.e.Any("/api/auth/userinfo", func(c echo.Context) error {
-		ck, err := c.Cookie("accessToken")
-		if err != nil {
-			return c.JSON(http.StatusUnauthorized, nil)
-		}
-
-		claims, err := s.ValidateJWTToken(c.Request().Context(), ck.Value)
+		claims, err := s.ValidateJWTToken(c.Request().Context(), c.QueryParam("accessToken"))
 		if err != nil {
 			log.Debug().Err(fmt.Errorf("auth userinfo, %w", err))
 			return c.JSON(http.StatusUnauthorized, nil)
@@ -144,17 +123,12 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 	})
 
 	s.e.GET("/api/auth/refresh", func(c echo.Context) error {
-		ck, err := c.Cookie("refreshToken")
-		if err != nil {
-			return c.JSON(http.StatusUnauthorized, nil)
-		}
-
 		form := url.Values{}
 
 		form.Add("grant_type", "refresh_token")
 		form.Add("client_id", s.oidc.ClientID)
 		form.Add("client_secret", s.oidc.Secret)
-		form.Add("refresh_token", ck.Value)
+		form.Add("refresh_token", c.Request().Header.Get("refreshToken"))
 
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/%s", s.oidc.Issuer, s.oidc.TokenURI), strings.NewReader(form.Encode()))
 		if err != nil {
@@ -186,30 +160,6 @@ func (s *EchoServer) mountAuthEndpoints() *EchoServer {
 
 			return c.JSON(http.StatusBadRequest, nil)
 		}
-
-		c.SetCookie(&http.Cookie{
-			Name:  "accessToken",
-			Value: data.AccessToken,
-			Path:  "/",
-		})
-
-		c.SetCookie(&http.Cookie{
-			Name:  "accessExpires",
-			Value: strconv.Itoa(data.ExpiresIn),
-			Path:  "/",
-		})
-
-		c.SetCookie(&http.Cookie{
-			Name:  "refreshToken",
-			Value: data.RefreshToken,
-			Path:  "/",
-		})
-
-		c.SetCookie(&http.Cookie{
-			Name:  "refreshExpires",
-			Value: strconv.Itoa(data.RefreshExpiresIn),
-			Path:  "/",
-		})
 
 		return c.JSON(http.StatusOK, data)
 	})
