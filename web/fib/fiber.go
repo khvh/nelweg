@@ -277,6 +277,7 @@ func (s *fiberServer) Routes(fn func(s web.Server) error) web.Server {
   return s
 }
 
+//go:embed docs
 var content embed.FS
 
 func (s *fiberServer) Run() error {
