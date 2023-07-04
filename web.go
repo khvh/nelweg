@@ -375,7 +375,7 @@ func WithOIDC(opts OIDCOptions) Configuration {
   }
 }
 
-// WithMiddleware add middleware to Echo
+// WithMiddleware add EchoMiddleware to Echo
 func WithMiddleware(middleware ...echo.MiddlewareFunc) Configuration {
   return func(s *EchoServer) error {
     if s.e == nil {
@@ -435,7 +435,7 @@ func (s *EchoServer) Route(path string, spec *Spec) *EchoServer {
   return s
 }
 
-// RawRoute adds a path + method + middleware directly echo bypassing OpenAPI and without doing any checks
+// RawRoute adds a path + method + EchoMiddleware directly echo bypassing OpenAPI and without doing any checks
 func (s *EchoServer) RawRoute(method Method, path string, fn echo.HandlerFunc, mw ...echo.MiddlewareFunc) *EchoServer {
   switch method {
   case MethodGet:
@@ -531,28 +531,28 @@ func (s *EchoServer) processSpecs() *EchoServer {
       }
 
       if spec.Auth && !spec.AuthAPI {
-        spec.Route.middleware = append(spec.Route.middleware, s.authMiddleware)
+        spec.Route.EchoMiddleware = append(spec.Route.EchoMiddleware, s.authMiddleware)
       }
 
       if !spec.Auth && spec.AuthAPI {
-        spec.Route.middleware = append(spec.Route.middleware, s.apiAuthMiddleware)
+        spec.Route.EchoMiddleware = append(spec.Route.EchoMiddleware, s.apiAuthMiddleware)
       }
 
       if spec.Auth && spec.AuthAPI {
-        spec.Route.middleware = append(spec.Route.middleware, s.fullAuth)
+        spec.Route.EchoMiddleware = append(spec.Route.EchoMiddleware, s.fullAuth)
       }
 
       switch spec.Method {
       case MethodGet:
-        s.e.GET(spec.FullRouterPath(), spec.Route.handler, spec.Route.middleware...)
+        s.e.GET(spec.FullRouterPath(), spec.Route.EchoHandler, spec.Route.EchoMiddleware...)
       case MethodDelete:
-        s.e.DELETE(spec.FullRouterPath(), spec.Route.handler, spec.Route.middleware...)
+        s.e.DELETE(spec.FullRouterPath(), spec.Route.EchoHandler, spec.Route.EchoMiddleware...)
       case MethodPost:
-        s.e.POST(spec.FullRouterPath(), spec.Route.handler, spec.Route.middleware...)
+        s.e.POST(spec.FullRouterPath(), spec.Route.EchoHandler, spec.Route.EchoMiddleware...)
       case MethodPut:
-        s.e.PUT(spec.FullRouterPath(), spec.Route.handler, spec.Route.middleware...)
+        s.e.PUT(spec.FullRouterPath(), spec.Route.EchoHandler, spec.Route.EchoMiddleware...)
       case MethodPatch:
-        s.e.PATCH(spec.FullRouterPath(), spec.Route.handler, spec.Route.middleware...)
+        s.e.PATCH(spec.FullRouterPath(), spec.Route.EchoHandler, spec.Route.EchoMiddleware...)
       }
     }
   }
@@ -656,41 +656,41 @@ func (s *EchoServer) Stop(ctx context.Context) error {
 // Get ...
 func Get[T any](path string, handler echo.HandlerFunc, mw ...echo.MiddlewareFunc) *Spec {
   return GetOp(path, mkGeneric[T](), WithRoute(&Route{
-    handler:    handler,
-    middleware: mw,
+    EchoHandler:    handler,
+    EchoMiddleware: mw,
   }))
 }
 
 // Delete ...
 func Delete[T any](path string, handler echo.HandlerFunc, mw ...echo.MiddlewareFunc) *Spec {
   return DeleteOp(path, mkGeneric[T](), WithRoute(&Route{
-    handler:    handler,
-    middleware: mw,
+    EchoHandler:    handler,
+    EchoMiddleware: mw,
   }))
 }
 
 // Post ...
 func Post[T, B any](path string, handler echo.HandlerFunc, mw ...echo.MiddlewareFunc) *Spec {
   return PostOp(path, mkGeneric[B](), mkGeneric[T](), WithRoute(&Route{
-    handler:    handler,
-    middleware: mw,
-    bodyType:   reflect.TypeOf(mkGeneric[B]()),
+    EchoHandler:    handler,
+    EchoMiddleware: mw,
+    BodyType:       reflect.TypeOf(mkGeneric[B]()),
   }))
 }
 
 // Patch ...
 func Patch[T, B any](path string, handler echo.HandlerFunc, mw ...echo.MiddlewareFunc) *Spec {
   return PatchOp(path, mkGeneric[B](), mkGeneric[T](), WithRoute(&Route{
-    handler:    handler,
-    middleware: mw,
+    EchoHandler:    handler,
+    EchoMiddleware: mw,
   }))
 }
 
 // Put ...
 func Put[T, B any](path string, handler echo.HandlerFunc, mw ...echo.MiddlewareFunc) *Spec {
   return PutOp(path, mkGeneric[B](), mkGeneric[T](), WithRoute(&Route{
-    handler:    handler,
-    middleware: mw,
+    EchoHandler:    handler,
+    EchoMiddleware: mw,
   }))
 }
 

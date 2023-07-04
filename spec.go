@@ -668,3 +668,6 @@ func handleError(err error) {
     log.Trace().Err(err).Send()
   }
 }
+
+// CreateGroup ...
+func CreateGroup(path string, specs ...Spec) {}
