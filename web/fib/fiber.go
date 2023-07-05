@@ -205,9 +205,12 @@ func WithFrontend(data *embed.FS, dir string) web.Configuration[fiberServer] {
 }
 
 // WithGroup ...
-func WithGroup(path string, specs ...*nelweg.Spec) web.Configuration[fiberServer] {
+func WithGroup(group *nelweg.Group) web.Configuration[fiberServer] {
   return func(s *fiberServer) error {
-    s.groups[path] = specs
+    for _, s := range group.Specs {
+      s.Tags = []string{group.Tag}
+    }
+    s.groups[group.Path] = group.Specs
 
     return nil
   }

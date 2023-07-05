@@ -35,9 +35,9 @@ func main() {
       fib.WithRoute(fib.Get[Example]("/some/test", func(c *fiber.Ctx) error {
         return c.JSON(nil)
       }).WithAuth()),
-      fib.WithGroup("/api/test", fib.Get[Example]("", func(c *fiber.Ctx) error {
+      fib.WithGroup(fib.Group("/api/test", "Test", fib.Get[Example]("", func(c *fiber.Ctx) error {
         return c.JSON(nil)
-      }).WithAuth()),
+      }).WithAuth())),
     ).
       Run(),
   ).Send()

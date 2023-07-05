@@ -44,3 +44,12 @@ func Put[T, B any](path string, mw ...fiber.Handler) *nelweg.Spec {
     BodyType:        reflect.TypeOf(web.MkGeneric[B]()),
   }))
 }
+
+// Group ...
+func Group(path, tag string, specs ...*nelweg.Spec) *nelweg.Group {
+  return &nelweg.Group{
+    Tag:   tag,
+    Specs: specs,
+    Path:  path,
+  }
+}
