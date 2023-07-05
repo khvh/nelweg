@@ -2,6 +2,7 @@ package web
 
 import (
   "context"
+  "encoding/json"
   "errors"
   "fmt"
   "github.com/lestrrat-go/jwx/v2/jwk"
@@ -54,6 +55,55 @@ type CodeResponse struct {
   NotBeforePolicy  int    `json:"not-before-policy" url:"notBeforePolicy"`
   SessionState     string `json:"session_state" url:"sessionState"`
   Scope            string `json:"scope" url:"scope"`
+}
+
+// UserClaims ...
+type UserClaims struct {
+  Acr               string    `json:"acr"`
+  AllowedOrigins    []string  `json:"allowed-origins"`
+  Aud               []string  `json:"aud"`
+  AuthTime          int       `json:"auth_time"`
+  Azp               string    `json:"azp"`
+  Email             string    `json:"email"`
+  EmailVerified     bool      `json:"email_verified"`
+  Exp               time.Time `json:"exp"`
+  FamilyName        string    `json:"family_name"`
+  GivenName         string    `json:"given_name"`
+  Iat               time.Time `json:"iat"`
+  Iss               string    `json:"iss"`
+  Jti               string    `json:"jti"`
+  Name              string    `json:"name"`
+  Nonce             string    `json:"nonce"`
+  PreferredUsername string    `json:"preferred_username"`
+  RealmAccess       struct {
+    Roles []string `json:"roles"`
+  } `json:"realm_access"`
+  ResourceAccess struct {
+    Account struct {
+      Roles []string `json:"roles"`
+    } `json:"account"`
+  } `json:"resource_access"`
+  Scope        string `json:"scope"`
+  SessionState string `json:"session_state"`
+  Sid          string `json:"sid"`
+  Sub          string `json:"sub"`
+  Typ          string `json:"typ"`
+}
+
+// ClaimsFromMap ...
+func ClaimsFromMap(data map[string]any) (*UserClaims, error) {
+  bts, err := json.Marshal(data)
+  if err != nil {
+    return nil, err
+  }
+
+  var claims UserClaims
+
+  if err := json.Unmarshal(bts, &claims); err != nil {
+    return nil, err
+  }
+
+  return &claims, err
 }
 
 // Server ...
