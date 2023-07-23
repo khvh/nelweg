@@ -5,6 +5,8 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -36,6 +38,16 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel"
 )
+
+// Template ...
+type Template struct {
+	templates *template.Template
+}
+
+// Render ...
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
+}
 
 // TemplateSpec ...
 type TemplateSpec struct {
@@ -73,6 +85,7 @@ type ServerOptions struct {
 	RequestLogger bool   `json:"requestLogger,omitempty" yaml:"requestLogger,omitempty"`
 	LogLevel      int    `json:"logLevel,omitempty" yaml:"logLevel,omitempty"`
 	Env           string `json:"env,omitempty" yaml:"env,omitempty"`
+	Templates     string `json:"templates,omitempty" yaml:"templates,omitempty"`
 }
 
 // OIDCOptions ...
@@ -721,12 +734,20 @@ func getFileSystem(embededFiles embed.FS, dir string, isDev bool) http.FileSyste
 }
 
 // CreateEchoInstance ...
-func CreateEchoInstance(hideBanner bool) *echo.Echo {
+func CreateEchoInstance(hideBanner bool, templates ...string) *echo.Echo {
 	e := echo.New()
 
 	e.HideBanner = hideBanner
 	e.HidePort = hideBanner
 	e.Validator = &Validator{validator: validator.New()}
+
+	if len(templates) > 0 {
+		t := &Template{
+			templates: template.Must(template.ParseGlob(templates[0])),
+		}
+
+		e.Renderer = t
+	}
 
 	return e
 }
