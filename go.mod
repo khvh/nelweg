@@ -31,6 +31,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/foolin/goview v0.3.0 // indirect
 	github.com/gofiber/adaptor/v2 v2.1.31 // indirect
 	github.com/klauspost/compress v1.16.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

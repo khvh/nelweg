@@ -25,9 +25,11 @@ func main() {
 	nelweg.
 		New(
 			nelweg.WithConfig(nelweg.ServerOptions{
-				Port: 1337,
-				ID:   "nelweg-test",
-				Env:  "dev",
+				Port:           1337,
+				ID:             "nelweg-test",
+				Env:            "dev",
+				Templates:      "cmd/testserver/views",
+				RemoveTrailing: true,
 			}),
 			nelweg.WithLogging(),
 			nelweg.WithKeyValidator(func(key string) (map[string]any, error) {
@@ -60,5 +62,12 @@ func main() {
 			nelweg.WithSummary("This path does things"),
 			nelweg.WithDescription("Short description"),
 		)).
+		TemplateGroup("/blah", &nelweg.TemplateSpec{
+			Method: nelweg.MethodGet,
+			Path:   "",
+			Handler: func(c echo.Context) error {
+				return c.Render(http.StatusOK, "main", echo.Map{"title": "Page file title!!"})
+			},
+		}).
 		Run()
 }

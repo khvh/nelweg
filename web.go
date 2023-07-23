@@ -25,6 +25,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 
+	"github.com/foolin/goview"
+	"github.com/foolin/goview/supports/echoview-v4"
+
 	gonanoid "github.com/matoous/go-nanoid/v2"
 
 	echoPrometheus "github.com/globocom/echo-prometheus"
@@ -41,12 +44,19 @@ import (
 
 // Template ...
 type Template struct {
-	templates *template.Template
+	baseTemplateName string
+	templates        *template.Template
 }
 
 // Render ...
 func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
+	tpl := t.templates.Lookup(name)
+
+	if tpl == nil {
+		return t.templates.ExecuteTemplate(w, name, data)
+	}
+
+	return tpl.ExecuteTemplate(w, t.baseTemplateName, data)
 }
 
 // TemplateSpec ...
@@ -76,16 +86,17 @@ type ValidateKey func(key string) (map[string]any, error)
 
 // ServerOptions ...
 type ServerOptions struct {
-	ID            string `json:"id,omitempty" yaml:"id,omitempty"`
-	Description   string `json:"description,omitempty" yaml:"description,omitempty"`
-	Version       string `json:"version,omitempty" yaml:"version,omitempty"`
-	Host          string `json:"host,omitempty" yaml:"host,omitempty"`
-	Port          int    `json:"port,omitempty" yaml:"port,omitempty"`
-	HideBanner    bool   `json:"hideBanner,omitempty" yaml:"hideBanner,omitempty"`
-	RequestLogger bool   `json:"requestLogger,omitempty" yaml:"requestLogger,omitempty"`
-	LogLevel      int    `json:"logLevel,omitempty" yaml:"logLevel,omitempty"`
-	Env           string `json:"env,omitempty" yaml:"env,omitempty"`
-	Templates     string `json:"templates,omitempty" yaml:"templates,omitempty"`
+	ID             string `json:"id,omitempty" yaml:"id,omitempty"`
+	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
+	Version        string `json:"version,omitempty" yaml:"version,omitempty"`
+	Host           string `json:"host,omitempty" yaml:"host,omitempty"`
+	Port           int    `json:"port,omitempty" yaml:"port,omitempty"`
+	HideBanner     bool   `json:"hideBanner,omitempty" yaml:"hideBanner,omitempty"`
+	RequestLogger  bool   `json:"requestLogger,omitempty" yaml:"requestLogger,omitempty"`
+	LogLevel       int    `json:"logLevel,omitempty" yaml:"logLevel,omitempty"`
+	Env            string `json:"env,omitempty" yaml:"env,omitempty"`
+	Templates      string `json:"templates,omitempty" yaml:"templates,omitempty"`
+	RemoveTrailing bool   `json:"removeTrailing,omitempty" yaml:"removeTrailing,omitempty"`
 }
 
 // OIDCOptions ...
@@ -133,10 +144,6 @@ func New(cfgs ...Configuration) *EchoServer {
 
 	s.groups[s.opts.ID] = []*Spec{}
 
-	if s.e == nil {
-		s.e = CreateEchoInstance(s.opts.HideBanner)
-	}
-
 	refOpts := &ReflectorOptions{
 		Servers:     addresses(),
 		Port:        s.opts.Port,
@@ -161,6 +168,11 @@ func New(cfgs ...Configuration) *EchoServer {
 func WithConfig(opts ServerOptions) Configuration {
 	return func(s *EchoServer) error {
 		s.opts = createDefaults(*s.opts, opts)
+		s.e = CreateEchoInstance(s.opts.HideBanner, s.opts.Templates)
+
+		if opts.RemoveTrailing {
+			s.e.Pre(middleware.RemoveTrailingSlash())
+		}
 
 		return nil
 	}
@@ -169,10 +181,6 @@ func WithConfig(opts ServerOptions) Configuration {
 // WithDefaultMiddleware ...
 func WithDefaultMiddleware() Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		s.e.Use(middleware.RequestID())
 		s.e.Use(middleware.CORS())
 		s.e.Use(middleware.Recover())
@@ -184,10 +192,6 @@ func WithDefaultMiddleware() Configuration {
 // WithRequestLogger ...
 func WithRequestLogger() Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		s.e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 			LogURI:    true,
 			LogStatus: true,
@@ -210,10 +214,6 @@ func WithRequestLogger() Configuration {
 // WithTracing ...
 func WithTracing(url ...string) Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		id := strings.ReplaceAll(s.opts.ID, "-", "_")
 		u := "http://localhost:14268/api/traces"
 
@@ -257,10 +257,6 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 	pathExceptions = append(pathExceptions, exceptions...)
 
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		dev := s.opts.Env == "dev"
 
 		if dev {
@@ -327,10 +323,6 @@ func WithFrontend(data embed.FS, dir string, exceptions ...string) Configuration
 // WithMetrics ...
 func WithMetrics() Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		s.e.Use(echoPrometheus.MetricsMiddleware())
 		s.e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
@@ -341,10 +333,6 @@ func WithMetrics() Configuration {
 // WithQueue ...
 func WithQueue(url, pw string, opts queue.Queues, fn func(q *queue.Queue)) Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		q, mon := queue.
 			CreateServer(url, 60, opts).
 			MountMonitor("127.0.0.1:6379", "")
@@ -375,10 +363,6 @@ func WithLogging() Configuration {
 // WithOIDC enables OpenID Connect auth
 func WithOIDC(opts OIDCOptions) Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		s.oidc = &opts
 
 		keySet, err := keys(opts.Issuer, opts.KeysURI)
@@ -399,10 +383,6 @@ func WithOIDC(opts OIDCOptions) Configuration {
 // WithMiddleware add EchoMiddleware to Echo
 func WithMiddleware(middleware ...echo.MiddlewareFunc) Configuration {
 	return func(s *EchoServer) error {
-		if s.e == nil {
-			s.e = CreateEchoInstance(s.opts.HideBanner)
-		}
-
 		s.e.Use(middleware...)
 
 		return nil
@@ -452,7 +432,14 @@ func (s *EchoServer) Group(path string, specs ...*Spec) *EchoServer {
 // TemplateGroup ...
 func (s *EchoServer) TemplateGroup(path string, specs ...*TemplateSpec) *EchoServer {
 	for _, templateSpec := range specs {
-		s.RawRoute(templateSpec.Method, fmt.Sprintf("%s/%s", path, strings.TrimPrefix(templateSpec.Path, "/")), templateSpec.Handler, templateSpec.Middleware...)
+		p := path
+		trimmed := strings.TrimPrefix(templateSpec.Path, "/")
+
+		if trimmed != "" {
+			p += "/" + trimmed
+		}
+
+		s.RawRoute(templateSpec.Method, path, templateSpec.Handler, templateSpec.Middleware...)
 	}
 
 	return s
@@ -641,6 +628,19 @@ func (s *EchoServer) Run() {
 		return c.JSON(http.StatusOK, map[string]any{"status": true})
 	})
 
+	if s.opts.Env == "dev" {
+		s.e.GET("/_debug", func(c echo.Context) error {
+			// data, err := json.MarshalIndent(s.e.Routes(), "", "  ")
+			// if err != nil {
+			// 	return c.JSON(http.StatusBadRequest, echo.Map{})
+			// }
+
+			return c.JSON(http.StatusOK, echo.Map{
+				"routes": s.e.Routes(),
+			})
+		})
+	}
+
 	s.e.Any("/docs", echo.WrapHandler(http.StripPrefix("/docs", assetHandler)))
 	s.e.Any("/docs/*", echo.WrapHandler(http.StripPrefix("/docs", assetHandler)))
 
@@ -742,11 +742,19 @@ func CreateEchoInstance(hideBanner bool, templates ...string) *echo.Echo {
 	e.Validator = &Validator{validator: validator.New()}
 
 	if len(templates) > 0 {
-		t := &Template{
-			templates: template.Must(template.ParseGlob(templates[0])),
-		}
+		e.Renderer = echoview.New(goview.Config{
+			Root:         templates[0],
+			Master:       "layout",
+			Extension:    ".html",
+			Partials:     []string{},
+			DisableCache: true,
+		})
+		// t := &Template{
+		// 	baseTemplateName: "layout",
+		// 	templates:        template.Must(template.ParseGlob(templates[0])),
+		// }
 
-		e.Renderer = t
+		// e.Renderer = t
 	}
 
 	return e
