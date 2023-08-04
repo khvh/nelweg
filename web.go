@@ -168,11 +168,23 @@ func New(cfgs ...Configuration) *EchoServer {
 func WithConfig(opts ServerOptions) Configuration {
 	return func(s *EchoServer) error {
 		s.opts = createDefaults(*s.opts, opts)
-		s.e = CreateEchoInstance(s.opts.HideBanner, s.opts.Templates)
+
+		if s.e == nil {
+			s.e = CreateEchoInstance(s.opts.HideBanner, s.opts.Templates)
+		}
 
 		if opts.RemoveTrailing {
 			s.e.Pre(middleware.RemoveTrailingSlash())
 		}
+
+		return nil
+	}
+}
+
+// WithEchoInstance allows you to provide your own echo.Echo instance
+func WithEchoInstance(instance *echo.Echo) Configuration {
+	return func(s *EchoServer) error {
+		s.e = instance
 
 		return nil
 	}
