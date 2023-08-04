@@ -113,15 +113,16 @@ type OIDCOptions struct {
 
 // EchoServer ...
 type EchoServer struct {
-	e            *echo.Echo
-	groups       map[string][]*Spec
-	ref          *openapi3.Reflector
-	opts         *ServerOptions
-	oidc         *OIDCOptions
-	jwks         jwk.Set
-	qRef         *queue.Queue
-	consulClient *api.Client
-	keyValidator ValidateKey
+	e             *echo.Echo
+	groups        map[string][]*Spec
+	ref           *openapi3.Reflector
+	opts          *ServerOptions
+	oidc          *OIDCOptions
+	jwks          jwk.Set
+	qRef          *queue.Queue
+	consulClient  *api.Client
+	keyValidator  ValidateKey
+	stripPrefixes []string
 }
 
 // Configuration ...
@@ -152,7 +153,7 @@ func New(cfgs ...Configuration) *EchoServer {
 		Version:     s.opts.Version,
 		APIKeyAuth:  s.keyValidator != nil,
 
-		StripPrefixes: []string{},
+		StripPrefixes: s.stripPrefixes,
 	}
 
 	if s.oidc != nil {
@@ -178,6 +179,15 @@ func WithConfig(opts ServerOptions) Configuration {
 		if opts.RemoveTrailing {
 			s.e.Pre(middleware.RemoveTrailingSlash())
 		}
+
+		return nil
+	}
+}
+
+// WithStripPrefixes from definitions in openapi
+func WithStripPrefixes(prefixes []string) Configuration {
+	return func(s *EchoServer) error {
+		s.stripPrefixes = prefixes
 
 		return nil
 	}
