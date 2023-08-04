@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/swaggest/jsonschema-go"
 	"github.com/swaggest/openapi-go/openapi3"
 )
 
@@ -538,6 +539,8 @@ type ReflectorOptions struct {
 
 	OpenAPIClientID string
 	OpenAPISecret   string
+
+	StripPrefixes []string
 }
 
 // CreateReflector ...
@@ -546,7 +549,14 @@ func CreateReflector(opts *ReflectorOptions) *openapi3.Reflector {
 		opts.OASVersion = "3.0.3"
 	}
 
-	ref := &openapi3.Reflector{}
+	ref := &openapi3.Reflector{
+		Reflector: jsonschema.Reflector{
+			DefaultOptions: []func(*jsonschema.ReflectContext){
+				jsonschema.StripDefinitionNamePrefix(append(opts.StripPrefixes, "Nelweg")...),
+			},
+		},
+		Spec: &openapi3.Spec{},
+	}
 
 	ref.Spec = &openapi3.Spec{Openapi: opts.OASVersion}
 

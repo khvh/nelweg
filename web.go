@@ -151,6 +151,8 @@ func New(cfgs ...Configuration) *EchoServer {
 		Description: s.opts.Description,
 		Version:     s.opts.Version,
 		APIKeyAuth:  s.keyValidator != nil,
+
+		StripPrefixes: []string{},
 	}
 
 	if s.oidc != nil {
